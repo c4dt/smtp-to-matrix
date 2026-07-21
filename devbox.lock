@@ -1,44 +1,6 @@
 {
   "lockfile_version": "1",
   "packages": {
-    "claude-code@latest": {
-      "last_modified": "2026-07-17T09:58:13Z",
-      "resolved": "github:NixOS/nixpkgs/a47c123a609287a012dfc44d281de2dd4ed13394#claude-code",
-      "source": "devbox-search",
-      "version": "2.1.211",
-      "systems": {
-        "aarch64-darwin": {
-          "outputs": [
-            {
-              "name": "out",
-              "path": "/nix/store/lvdp621hk4swivym4794m86g3xpymhar-claude-code-2.1.211",
-              "default": true
-            }
-          ],
-          "store_path": "/nix/store/lvdp621hk4swivym4794m86g3xpymhar-claude-code-2.1.211"
-        },
-        "aarch64-linux": {
-          "outputs": [
-            {
-              "name": "out",
-              "path": "/nix/store/gppvavhg1vdjzdlmqd1g12cim5k19pvm-claude-code-2.1.211",
-              "default": true
-            }
-          ],
-          "store_path": "/nix/store/gppvavhg1vdjzdlmqd1g12cim5k19pvm-claude-code-2.1.211"
-        },
-        "x86_64-linux": {
-          "outputs": [
-            {
-              "name": "out",
-              "path": "/nix/store/7hb5vkafffc7zmq7gyda394nl3nfrwkh-claude-code-2.1.211",
-              "default": true
-            }
-          ],
-          "store_path": "/nix/store/7hb5vkafffc7zmq7gyda394nl3nfrwkh-claude-code-2.1.211"
-        }
-      }
-    },
     "github:NixOS/nixpkgs/nixpkgs-unstable": {
       "last_modified": "2026-07-20T05:30:19Z",
       "resolved": "github:NixOS/nixpkgs/a16c3fde2ffeab7f6326f50f460aaffde7ae066d?lastModified=1784525419&narHash=sha256-yocJ4I4Kd4as0UPMFs9P7laPvvA2x%2FBj8EW46iW3VVM%3D"

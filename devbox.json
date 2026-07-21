@@ -1,6 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/jetify-com/devbox/0.17.5/.schema/devbox.schema.json",
-  "packages": ["claude-code@latest", "uv@latest", "python@3.12", "prettier@latest"],
+  "packages": ["uv@latest", "python@3.12", "prettier@latest"],
   "shell": {
     "init_hook": ["uv sync"],
     "scripts": {
