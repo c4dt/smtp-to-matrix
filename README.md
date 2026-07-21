@@ -12,15 +12,16 @@ MTA). The target Matrix room must be **unencrypted**.
 
 The server reads its configuration from environment variables:
 
-| Variable                | Required | Description                                                      |
-| ----------------------- | -------- | ---------------------------------------------------------------- |
-| `MATRIX_HOMESERVER_URL` | yes      | Base URL of the homeserver, e.g. `https://matrix.example.org`.   |
-| `MATRIX_ROOM_ID`        | yes      | Target room id `!id:server` or alias `#name:server`.             |
-| `MATRIX_ACCESS_TOKEN`   | either   | A ready access token. Preferred over login.                      |
-| `MATRIX_LOGIN`          | either   | Username for password login (used when no access token is set).  |
-| `MATRIX_PASS`           | either   | Password for password login.                                     |
-| `SMTP_HOST`             | no       | Bind address for the listener. Default `0.0.0.0`.                |
-| `SMTP_PORT`             | no       | Listener port. Default `25` (needs root/`CAP_NET_BIND_SERVICE`). |
+| Variable                | Required | Description                                                            |
+| ----------------------- | -------- | ---------------------------------------------------------------------- |
+| `MATRIX_HOMESERVER_URL` | yes      | Base URL of the homeserver, e.g. `https://matrix.example.org`.         |
+| `MATRIX_ROOM_ID`        | yes      | Target room id `!id:server` or alias `#name:server`.                   |
+| `MATRIX_ACCESS_TOKEN`   | either   | A ready access token. Preferred over login.                            |
+| `MATRIX_LOGIN`          | either   | Username for password login (used when no access token is set).        |
+| `MATRIX_PASS`           | either   | Password for password login.                                           |
+| `SMTP_HOST`             | no       | Bind address for the listener. Default `0.0.0.0`.                      |
+| `SMTP_PORT`             | no       | Listener port. Default `25` (needs root/`CAP_NET_BIND_SERVICE`).       |
+| `MATRIX_HOST_LABEL`     | no       | Label for the `Host:` line of each message. Default: machine hostname. |
 
 For development, copy the example file, fill it in, and export it into your shell:
 
@@ -88,7 +89,8 @@ To build the image locally instead:
 docker build -t smtp-to-matrix .
 ```
 
-### Smoke test
+
+## Smoke test
 
 With the server running, send it a message from another shell. With
 [swaks](https://github.com/jetmore/swaks):

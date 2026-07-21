@@ -67,6 +67,7 @@ def main() -> int:
 
     host = os.environ.get("SMTP_HOST", DEFAULT_HOST)
     port = int(os.environ.get("SMTP_PORT", DEFAULT_PORT))
+    host_label = os.environ.get("MATRIX_HOST_LABEL") or socket.gethostname()
 
     try:
         token = matrix.resolve_token(homeserver)
@@ -75,7 +76,7 @@ def main() -> int:
         _log(f"configuration error: {exc}")
         return 78  # EX_CONFIG
 
-    handler = MatrixHandler(homeserver, token, room_id, socket.gethostname())
+    handler = MatrixHandler(homeserver, token, room_id, host_label)
     controller = Controller(handler, hostname=host, port=port)
     controller.start()
     _log(f"listening on {host}:{port}, forwarding to {room_id}")
