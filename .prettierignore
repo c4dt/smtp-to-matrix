@@ -1,0 +1,7 @@
+# Prettier handles docs/config only; Ruff owns the Python code.
+*.py
+.devbox/
+.venv/
+.git/
+uv.lock
+devbox.lock

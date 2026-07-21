@@ -1,0 +1,11 @@
+.venv/
+.devbox/
+.git/
+.github/
+.pytest_cache/
+.ruff_cache/
+.pybuild/
+__pycache__/
+*.pyc
+.env
+tests/

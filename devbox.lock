@@ -1,0 +1,190 @@
+{
+  "lockfile_version": "1",
+  "packages": {
+    "claude-code@latest": {
+      "last_modified": "2026-07-17T09:58:13Z",
+      "resolved": "github:NixOS/nixpkgs/a47c123a609287a012dfc44d281de2dd4ed13394#claude-code",
+      "source": "devbox-search",
+      "version": "2.1.211",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/lvdp621hk4swivym4794m86g3xpymhar-claude-code-2.1.211",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/lvdp621hk4swivym4794m86g3xpymhar-claude-code-2.1.211"
+        },
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/gppvavhg1vdjzdlmqd1g12cim5k19pvm-claude-code-2.1.211",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/gppvavhg1vdjzdlmqd1g12cim5k19pvm-claude-code-2.1.211"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/7hb5vkafffc7zmq7gyda394nl3nfrwkh-claude-code-2.1.211",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/7hb5vkafffc7zmq7gyda394nl3nfrwkh-claude-code-2.1.211"
+        }
+      }
+    },
+    "github:NixOS/nixpkgs/nixpkgs-unstable": {
+      "last_modified": "2026-07-20T05:30:19Z",
+      "resolved": "github:NixOS/nixpkgs/a16c3fde2ffeab7f6326f50f460aaffde7ae066d?lastModified=1784525419&narHash=sha256-yocJ4I4Kd4as0UPMFs9P7laPvvA2x%2FBj8EW46iW3VVM%3D"
+    },
+    "prettier@latest": {
+      "last_modified": "2026-07-12T10:08:30Z",
+      "resolved": "github:NixOS/nixpkgs/2db6e73b5d66ffd9d4c203f065d676f9a1eabbd2#prettier",
+      "source": "devbox-search",
+      "version": "3.8.3",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/f4zflf6690xpmybrmdbk7pfiyl79l4rs-prettier-3.8.3",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/f4zflf6690xpmybrmdbk7pfiyl79l4rs-prettier-3.8.3"
+        },
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/5y1k5ffpszavrwhha5shr6ipiih80ka3-prettier-3.8.3",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/5y1k5ffpszavrwhha5shr6ipiih80ka3-prettier-3.8.3"
+        },
+        "x86_64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/s6acj3z8zl2c63hpm9m8n79y9arknf4a-prettier-3.8.3",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/s6acj3z8zl2c63hpm9m8n79y9arknf4a-prettier-3.8.3"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/gy43q6avw0d94pdkj2jnyny4b4pjm0dn-prettier-3.8.3",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/gy43q6avw0d94pdkj2jnyny4b4pjm0dn-prettier-3.8.3"
+        }
+      }
+    },
+    "python@3.12": {
+      "last_modified": "2026-07-08T21:13:06Z",
+      "plugin_version": "0.0.5",
+      "resolved": "github:NixOS/nixpkgs/389ed85304b281ca7f306cf8a1eb4378651ca44e#python312",
+      "source": "devbox-search",
+      "version": "3.12.13",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/h2vxf9d0mwgc7gcxm8m468gv9zdyl4da-python3-3.12.13",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/h2vxf9d0mwgc7gcxm8m468gv9zdyl4da-python3-3.12.13"
+        },
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/pil8zmkcnlarlg9g27c3r188ly0jv0ir-python3-3.12.13",
+              "default": true
+            },
+            {
+              "name": "debug",
+              "path": "/nix/store/l4wz6i3a0mnzh8d667y6qsbv5wzbx598-python3-3.12.13-debug"
+            }
+          ],
+          "store_path": "/nix/store/pil8zmkcnlarlg9g27c3r188ly0jv0ir-python3-3.12.13"
+        },
+        "x86_64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/afd3xzw8afbbr1dsqjvb6xg2a5gah4vg-python3-3.12.13",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/afd3xzw8afbbr1dsqjvb6xg2a5gah4vg-python3-3.12.13"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/3jm89jy56cprn52iw8vanpav58hlcj1v-python3-3.12.13",
+              "default": true
+            },
+            {
+              "name": "debug",
+              "path": "/nix/store/397340bq615p2x515c9zawd3b0dm5kxk-python3-3.12.13-debug"
+            }
+          ],
+          "store_path": "/nix/store/3jm89jy56cprn52iw8vanpav58hlcj1v-python3-3.12.13"
+        }
+      }
+    },
+    "uv@latest": {
+      "last_modified": "2026-07-17T09:58:13Z",
+      "resolved": "github:NixOS/nixpkgs/a47c123a609287a012dfc44d281de2dd4ed13394#uv",
+      "source": "devbox-search",
+      "version": "0.11.28",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/bfa05ywgyykfd0z0wzf0xri95yv2gyv0-uv-0.11.28",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/bfa05ywgyykfd0z0wzf0xri95yv2gyv0-uv-0.11.28"
+        },
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/7sr24yhd66q7xs9x84rrfvqp6396gl73-uv-0.11.28",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/7sr24yhd66q7xs9x84rrfvqp6396gl73-uv-0.11.28"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/isixf7b2qfyw6qbrr8bq2j8zdn7ij9pr-uv-0.11.28",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/isixf7b2qfyw6qbrr8bq2j8zdn7ij9pr-uv-0.11.28"
+        }
+      }
+    }
+  }
+}

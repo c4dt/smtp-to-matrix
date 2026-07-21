@@ -1,0 +1,21 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jetify-com/devbox/0.17.5/.schema/devbox.schema.json",
+  "packages": ["claude-code@latest", "uv@latest", "python@3.12", "prettier@latest"],
+  "shell": {
+    "init_hook": ["uv sync"],
+    "scripts": {
+      "test": ["uv run pytest"],
+      "lint": [
+        "uv run ruff check .",
+        "uv run ruff format --check .",
+        "prettier --check ."
+      ],
+      "format": [
+        "uv run ruff check --fix .",
+        "uv run ruff format .",
+        "prettier --write ."
+      ],
+      "start": ["uv run smtp-to-matrix"]
+    }
+  }
+}
