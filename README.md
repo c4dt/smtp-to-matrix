@@ -19,9 +19,9 @@ The server reads its configuration from environment variables:
 | `MATRIX_ACCESS_TOKEN`   | either   | A ready access token. Preferred over login.                            |
 | `MATRIX_LOGIN`          | either   | Username for password login (used when no access token is set).        |
 | `MATRIX_PASS`           | either   | Password for password login.                                           |
+| `MATRIX_HOST_LABEL`     | no       | Label for the `Host:` line of each message. Default: machine hostname. |
 | `SMTP_HOST`             | no       | Bind address for the listener. Default `0.0.0.0`.                      |
 | `SMTP_PORT`             | no       | Listener port. Default `25` (needs root/`CAP_NET_BIND_SERVICE`).       |
-| `MATRIX_HOST_LABEL`     | no       | Label for the `Host:` line of each message. Default: machine hostname. |
 
 For development, copy the example file, fill it in, and export it into your shell:
 
@@ -87,6 +87,87 @@ To build the image locally instead:
 
 ```sh
 docker build -t smtp-to-matrix .
+```
+
+## Installation as a System Mailer for Ubuntu
+
+### smtp-to-matrix installation
+
+> Docker must be installed as a pre-requisite
+
+Create a smtp-to-matrix user
+
+```bash
+useradd -m smtp-to-matrix
+usermod -aG docker smtp-to-matrix
+```
+
+As the user, create the env file (fill out the empty env variables, use password or sharedsecret)
+
+```bash
+cp .env.example .env
+vim .env
+```
+
+Create a docker-compose file:
+
+```bash
+cat <<EOF > compose.yml
+services:
+  smtp-to-matrix:
+    # Can bind to 25
+    cap_add:
+      - NET_BIND_SERVICE
+    ports:
+      - 25:25
+    env_file: ./.env
+    environment:
+      - MATRIX_HOST_LABEL=${HOSTNAME}
+    image: ghcr.io/c4dt/smtp-to-matrix:latest
+EOF
+```
+
+Start the service
+
+```bash
+docker compose up -d
+```
+
+### Sendmail configuration
+
+To forward all mails from our server to smtp-to-matrix we use the msmtp SMTP client and configure postmoogle as the server.
+
+```bash
+apt install msmtp msmtp-mta
+```
+
+> ⚠️ We will replace the installed postfix installation and need to make sure we don’t break existing configuration.
+
+Configure MSMTP to send with postmoogle
+
+```bash
+cat <<EOF > /etc/msmtprc
+defaults
+auth off
+tls off
+auto_from on
+logfile /var/log/msmtp.log
+
+account matrix-to-smtp
+host 127.0.0.1
+port 25
+
+account default : matrix-to-smtp
+EOF
+```
+
+
+Update permissions
+
+```bash
+chmod 644 /etc/msmtprc  # Users need read permissions in order to send mails
+touch /var/log/msmtp.log
+chmod 666 /var/log/msmtp.log # As all users can execute the sendmail binary, they need to be able to write into /var/log/msmtp.log 
 ```
 
 
