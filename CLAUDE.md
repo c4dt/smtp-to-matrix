@@ -80,3 +80,53 @@ in `tests`.
   client-server API (`resolve_token`, `resolve_room`, `send_html`).
 - `tests/` — `test_message.py` (rendering unit tests) and `test_server.py`
   (in-process SMTP-to-Matrix end-to-end with `respx`-mocked Matrix).
+
+## Testing Conventions
+
+### TDD Workflow
+- Always write failing tests BEFORE implementation
+- Use AAA pattern: Arrange-Act-Assert
+- One assertion per test when possible
+- Test names describe behavior: "should_return_empty_when_no_items"
+
+### Test-First Rules
+- When I ask for a feature, write tests first
+- Tests should FAIL initially (no implementation exists)
+- Only after tests are written, implement minimal code to pass
+
+## Git workflow
+
+- Create a descriptive commit message
+- Create one short commented commit per phase, avoid long comments
+- Run formatter and tests before committing
+
+## Error Resolution
+
+1. CI Failures
+   - Fix order:
+     1. Formatting
+     2. Type errors
+     3. Linting
+   - Type errors:
+     - Get full line context
+     - Check Optional types
+     - Add type narrowing
+     - Verify function signatures
+
+2. Common Issues
+   - Line length:
+     - Break strings with parentheses
+     - Multi-line function calls
+     - Split imports
+   - Types:
+     - Add None checks
+     - Narrow string types
+     - Match existing patterns
+
+3. Best Practices
+   - Check git status before commits
+   - Run formatters before type checks
+   - Keep changes minimal
+   - Follow existing patterns
+   - Document public APIs
+   - Test thoroughly
