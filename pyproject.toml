@@ -16,6 +16,7 @@ smtp-to-matrix = "smtp_to_matrix.server:main"
 
 [dependency-groups]
 dev = [
+    "anyio>=4.14.2",
     "pytest>=8.0",
     "respx>=0.21",
     "ruff>=0.6",
