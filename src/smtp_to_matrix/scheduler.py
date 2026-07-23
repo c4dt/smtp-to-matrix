@@ -47,6 +47,9 @@ def flush_batch(
     rows = store.pop(batch.name)
     if not rows:
         return
+    count = len(rows)
+    noun = "message" if count == 1 else "messages"
+    _log(f"sending batch {batch.name!r} digest: {count} {noun}")
     header = _digest_header(batch, rows)
     root = matrix.send_html(
         homeserver, token, room_id, header, f"{html.escape(header)}"
