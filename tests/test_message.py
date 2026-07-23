@@ -1,8 +1,9 @@
 """Unit tests for rendering received email into Matrix bodies."""
 
+from datetime import UTC, datetime
 from email.message import EmailMessage
 
-from smtp_to_matrix.message import render_email
+from smtp_to_matrix.message import parse_meta, render_email, summary_line
 
 HOST = "testhost"
 
@@ -69,3 +70,42 @@ def test_rfc2047_encoded_subject_decoded() -> None:
     raw = b"Subject: =?utf-8?q?caf=C3=A9?=\n\nbody\n"
     plain, _ = render_email(raw, HOST)
     assert "Subject: café" in plain
+
+
+def test_parse_meta_extracts_fields() -> None:
+    raw = _build(**{"from": "a@x", "to": "b@y", "subject": "hi", "body": "hello"})
+    meta = parse_meta(raw, HOST)
+    assert meta.host == HOST
+    assert meta.sender == "a@x"
+    assert meta.subject == "hi"
+    assert "hello" in meta.body
+
+
+def test_parse_meta_missing_headers_are_empty() -> None:
+    meta = parse_meta(_build(body="x"), HOST)
+    assert meta.sender == ""
+    assert meta.subject == ""
+
+
+def test_parse_meta_uses_date_header() -> None:
+    raw = b"Subject: hi\nDate: Mon, 02 Jan 2023 03:04:05 +0000\n\nbody\n"
+    meta = parse_meta(raw, HOST)
+    assert meta.date == datetime(2023, 1, 2, 3, 4, 5, tzinfo=UTC)
+
+
+def test_parse_meta_falls_back_to_now_without_date() -> None:
+    before = datetime.now().astimezone()
+    meta = parse_meta(_build(subject="hi", body="x"), HOST)
+    assert meta.date >= before
+
+
+def test_summary_line_format() -> None:
+    raw = (
+        b"Subject: disk full\nFrom: ops@localhost\n"
+        b"Date: Mon, 02 Jan 2023 03:04:05 +0000\n\nbody\n"
+    )
+    meta = parse_meta(raw, HOST)
+    expected_time = meta.date.astimezone().strftime("%Y-%m-%d %H:%M")
+    assert summary_line(meta) == (
+        f"{HOST} - {expected_time} - ops@localhost - disk full"
+    )

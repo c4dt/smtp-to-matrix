@@ -22,6 +22,8 @@ The server reads its configuration from environment variables:
 | `MATRIX_HOST_LABEL`     | no       | Label for the `Host:` line of each message. Default: machine hostname. |
 | `SMTP_HOST`             | no       | Bind address for the listener. Default `0.0.0.0`.                      |
 | `SMTP_PORT`             | no       | Listener port. Default `25` (needs root/`CAP_NET_BIND_SERVICE`).       |
+| `CONFIG_PATH`           | no       | Path to the batching config (see below). Unset: every mail sent now.   |
+| `DB_PATH`               | no       | SQLite file for batched mail. Default `pending_mail.db`.               |
 
 For development, copy the example file, fill it in, and export it into your shell:
 
@@ -65,8 +67,31 @@ uv run smtp-to-matrix
 
 It resolves the Matrix token and room once at startup, then listens for mail.
 Every received message is rendered — the receiving server's hostname on the first
-line (`Host: ...`), then a `From`/`To`/`Subject` header block, then the text body
-— and posted to the room.
+line (`Host: ...`), then a `From`/`To`/`Subject` header block, then the text body.
+
+By default each message is posted immediately as a **one-line summary**
+(`host - date - sender - subject`) with the full rendered body as a **threaded
+reply** underneath, so the room stays scannable.
+
+## Summaries, batching & digests
+
+Set `CONFIG_PATH` to a YAML file to hold selected mail in named buckets and post
+each bucket as a scheduled digest instead of immediately. See
+[`config.example.yaml`](config.example.yaml) for the full format.
+
+Each received mail is classified in order:
+
+1. Match against `batch_emails` top-to-bottom — **first match wins**.
+2. If a batch matched, check that batch's `exceptions` plus the global
+   `exceptions` — if any match, **send now**; otherwise **hold** in that bucket.
+3. No batch matched — **send now** (the default).
+
+Rules use `re.search`; within a rule the set fields (`host`, `sender`,
+`subject`, `body`) are ANDed, and rules within a `match_any` list are ORed. Each
+batch has a cron `schedule` (5-field or `@macros`, server local time); when it
+fires, the held mail is posted as a digest (the batch name as the root event,
+each held body threaded under it) and the bucket is cleared. Held mail lives in
+the SQLite file at `DB_PATH` and survives restarts.
 
 ## Docker
 
@@ -121,8 +146,13 @@ services:
     ports:
       - 25:25
     env_file: ./.env
+    volumes:
+      - ./config.yaml:/etc/smtp-to-matrix/config.yaml
+      - ./data:/app/data
     environment:
       - MATRIX_HOST_LABEL=${HOSTNAME}
+      - CONFIG_PATH=/etc/smtp-to-matrix/config.yaml
+      - DB_PATH=data/pending_mail.db
     image: ghcr.io/c4dt/smtp-to-matrix:latest
 EOF
 ```
@@ -151,7 +181,6 @@ defaults
 auth off
 tls off
 auto_from on
-logfile /var/log/msmtp.log
 
 account matrix-to-smtp
 host 127.0.0.1
@@ -161,15 +190,11 @@ account default : matrix-to-smtp
 EOF
 ```
 
-
 Update permissions
 
 ```bash
 chmod 644 /etc/msmtprc  # Users need read permissions in order to send mails
-touch /var/log/msmtp.log
-chmod 666 /var/log/msmtp.log # As all users can execute the sendmail binary, they need to be able to write into /var/log/msmtp.log 
 ```
-
 
 ## Smoke test
 
