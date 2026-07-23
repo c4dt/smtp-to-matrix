@@ -37,11 +37,13 @@ def render_email(raw: bytes, hostname: str) -> tuple[str, str]:
     """Parse raw email bytes into ``(plain_body, html_body)`` for Matrix.
 
     The first line is ``Host: {hostname}`` (the server that received the mail),
-    followed by a small ``From``/``To``/``Subject`` header block and the
-    message's text body. Missing headers and bodies are tolerated.
+    followed by the mail's ``Date`` and a small ``From``/``To``/``Subject``
+    header block and the message's text body. Missing headers and bodies are
+    tolerated; the ``Date`` falls back to receive-time when absent.
     """
     msg = message_from_bytes(raw, policy=default)
-    headers = [("Host", hostname)]
+    when = _mail_date(msg).astimezone().strftime("%Y-%m-%d %H:%M")
+    headers = [("Host", hostname), ("Date", when)]
     headers += [(name, msg[name]) for name in _HEADERS if msg[name]]
     body = _text_body(msg).strip()
 
