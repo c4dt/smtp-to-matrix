@@ -20,7 +20,7 @@ from smtp_to_matrix.store import Row, Store
 
 
 def _digest_header(batch: Batch, rows: list[Row]) -> str:
-    """Summarise a digest: ``title - host - first until last - N message(s)``."""
+    """Summarise a digest: ``host - title - first until last - N message(s)``."""
     dates = sorted(row.date.astimezone() for row in rows)
     span = dates[0].strftime("%Y-%m-%d %H:%M")
     if dates[0] != dates[-1]:
