@@ -122,7 +122,8 @@ Code lives in `src/smtp_to_matrix` and tests in `tests`.
 ## Git workflow
 
 - Create a descriptive commit message
-- Create one short commented commit per phase, avoid long comments
+- Create one short commented commit per phase, avoid long commit messages!
+- Before commiting append CHANGELOG.md and highlight the changes in your commit.
 - Run formatter and tests before committing
 
 ## Error Resolution
