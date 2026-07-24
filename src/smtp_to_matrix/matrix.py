@@ -58,19 +58,28 @@ def send_html(
     room_id: str,
     plain_body: str,
     html_body: str,
+    thread_root: str | None = None,
 ) -> str:
     # A unique transaction id per call: Matrix treats a repeated txn id as an
     # idempotent retry, so a content-derived id would drop duplicate messages.
     txn = uuid.uuid4().hex
+    content: dict[str, object] = {
+        "msgtype": "m.text",
+        "body": plain_body,
+        "format": "org.matrix.custom.html",
+        "formatted_body": html_body,
+    }
+    if thread_root is not None:
+        content["m.relates_to"] = {
+            "rel_type": "m.thread",
+            "event_id": thread_root,
+            "is_falling_back": True,
+            "m.in_reply_to": {"event_id": thread_root},
+        }
     resp = httpx.put(
         f"{homeserver}/_matrix/client/v3/rooms/{quote(room_id)}/send/m.room.message/{txn}",
         headers={"Authorization": f"Bearer {token}"},
-        json={
-            "msgtype": "m.text",
-            "body": plain_body,
-            "format": "org.matrix.custom.html",
-            "formatted_body": html_body,
-        },
+        json=content,
         timeout=_TIMEOUT,
     )
     resp.raise_for_status()

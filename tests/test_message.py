@@ -1,15 +1,19 @@
 """Unit tests for rendering received email into Matrix bodies."""
 
+import re
+from datetime import UTC, datetime
 from email.message import EmailMessage
+from email.utils import parsedate_to_datetime
 
-from smtp_to_matrix.message import render_email
+from smtp_to_matrix.message import parse_meta, render_email, summary_line
 
 HOST = "testhost"
+_DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}")
 
 
 def _build(**parts: str) -> bytes:
     msg = EmailMessage()
-    for header in ("From", "To", "Subject"):
+    for header in ("From", "To", "Subject", "Date"):
         if header.lower() in parts:
             msg[header] = parts[header.lower()]
     msg.set_content(parts.get("body", ""))
@@ -43,8 +47,38 @@ def test_html_escapes_content() -> None:
 
 def test_missing_headers_tolerated() -> None:
     plain, html_body = render_email(_build(body="just a body"), HOST)
-    assert plain == f"Host: {HOST}\n\njust a body"
+    lines = plain.splitlines()
+    assert lines[0] == f"Host: {HOST}"
+    assert lines[1].startswith("Date: ")
+    assert _DATE_RE.fullmatch(lines[1].removeprefix("Date: "))
+    assert "just a body" in plain
     assert "<pre>just a body</pre>" in html_body
+
+
+def test_date_is_second_line() -> None:
+    raw = _build(subject="hi", date="Mon, 02 Jan 2023 03:04:05 +0000", body="x")
+    plain, _ = render_email(raw, HOST)
+    lines = plain.splitlines()
+    assert lines[0] == f"Host: {HOST}"
+    assert lines[1].startswith("Date: ")
+
+
+def test_date_matches_mail_header() -> None:
+    raw = _build(subject="hi", date="Mon, 02 Jan 2023 03:04:05 +0000", body="x")
+    plain, _ = render_email(raw, HOST)
+    expected = (
+        parsedate_to_datetime("Mon, 02 Jan 2023 03:04:05 +0000")
+        .astimezone()
+        .strftime("%Y-%m-%d %H:%M")
+    )
+    assert f"Date: {expected}" in plain
+
+
+def test_missing_date_header_still_renders_date_line() -> None:
+    plain, _ = render_email(_build(subject="hi", body="x"), HOST)
+    line = plain.splitlines()[1]
+    assert line.startswith("Date: ")
+    assert _DATE_RE.fullmatch(line.removeprefix("Date: "))
 
 
 def test_multipart_prefers_plain_text() -> None:
@@ -69,3 +103,40 @@ def test_rfc2047_encoded_subject_decoded() -> None:
     raw = b"Subject: =?utf-8?q?caf=C3=A9?=\n\nbody\n"
     plain, _ = render_email(raw, HOST)
     assert "Subject: café" in plain
+
+
+def test_parse_meta_extracts_fields() -> None:
+    raw = _build(**{"from": "a@x", "to": "b@y", "subject": "hi", "body": "hello"})
+    meta = parse_meta(raw, HOST)
+    assert meta.host == HOST
+    assert meta.sender == "a@x"
+    assert meta.subject == "hi"
+    assert "hello" in meta.body
+
+
+def test_parse_meta_missing_headers_are_empty() -> None:
+    meta = parse_meta(_build(body="x"), HOST)
+    assert meta.sender == ""
+    assert meta.subject == ""
+
+
+def test_parse_meta_uses_date_header() -> None:
+    raw = b"Subject: hi\nDate: Mon, 02 Jan 2023 03:04:05 +0000\n\nbody\n"
+    meta = parse_meta(raw, HOST)
+    assert meta.date == datetime(2023, 1, 2, 3, 4, 5, tzinfo=UTC)
+
+
+def test_parse_meta_falls_back_to_now_without_date() -> None:
+    before = datetime.now().astimezone()
+    meta = parse_meta(_build(subject="hi", body="x"), HOST)
+    assert meta.date >= before
+
+
+def test_summary_line_format() -> None:
+    raw = (
+        b"Subject: disk full\nFrom: ops@localhost\n"
+        b"Date: Mon, 02 Jan 2023 03:04:05 +0000\n\nbody\n"
+    )
+    meta = parse_meta(raw, HOST)
+    expected_time = meta.date.astimezone().strftime("%Y-%m-%d %H:%M")
+    assert summary_line(meta) == (f"{expected_time} - ops@localhost@{HOST} - disk full")

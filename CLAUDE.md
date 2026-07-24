@@ -65,20 +65,45 @@ This document contains critical information about working with this codebase. Fo
 An SMTP server (built on `aiosmtpd`) accepts mail on `SMTP_HOST:SMTP_PORT` and
 forwards every message — regardless of recipient — to the single Matrix room
 named by `MATRIX_ROOM_ID`. The Matrix token and room are resolved once at
-startup; each received message is rendered to plain-text + HTML and posted via
-the Matrix client-server HTTP API. Code lives in `src/smtp_to_matrix` and tests
-in `tests`.
+startup, and posting uses the Matrix client-server HTTP API.
+
+Each received mail is classified against the batching config (`CONFIG_PATH`,
+YAML): it is matched top-to-bottom against `batch_emails` buckets (first match
+wins), and a matched bucket is overridden to **send now** when any of its own or
+the global `exceptions` match. Mail with no batch match is also sent now.
+
+- **Send now:** post a 1-line summary as a root event, then the full rendered
+  body as a threaded reply under it.
+- **Held mail** is stored (raw bytes) in a SQLite bucket and posted later. An
+  in-process asyncio scheduler flushes each bucket on its cron `schedule`,
+  posting a digest header as a root event with each held mail's full body
+  threaded underneath, then deleting the flushed rows.
+
+Code lives in `src/smtp_to_matrix` and tests in `tests`.
 
 ## Core Components
 
 - `src/smtp_to_matrix/server.py` — entry point (`main`) and the `aiosmtpd`
-  `MatrixHandler`; reads env config, runs the listener, forwards each message to
-  Matrix off the event loop.
-- `src/smtp_to_matrix/message.py` — `render_email(raw)` parses an RFC-822 message
-  into `(plain, html)` bodies.
+  `MatrixHandler`; reads env config, resolves Matrix credentials, classifies
+  each message (send-now vs. held), and runs the SMTP listener alongside the
+  scheduler.
+- `src/smtp_to_matrix/config.py` — loads/validates the YAML config into typed
+  `Config`/`Batch`/`Rule` models (compiled regexes, cron schedules) and
+  `classify`s a mail into a batch name or send-now.
+- `src/smtp_to_matrix/store.py` — SQLite `Store` for held mail
+  (`init`/`add`/`pop`/`delete`) keyed by batch; stores raw bytes, re-rendered at
+  flush.
+- `src/smtp_to_matrix/scheduler.py` — in-process asyncio loop that sleeps to the
+  soonest batch fire (via `croniter`), flushes due buckets as threaded digests,
+  and reschedules.
+- `src/smtp_to_matrix/message.py` — `render_email(raw, host)` parses an RFC-822
+  message into `(plain, html)` bodies; `parse_meta`/`MailMeta` and
+  `summary_line` build the classification metadata and the 1-line summary.
 - `src/smtp_to_matrix/matrix.py` — synchronous `httpx` client for the Matrix
-  client-server API (`resolve_token`, `resolve_room`, `send_html`).
-- `tests/` — `test_message.py` (rendering unit tests) and `test_server.py`
+  client-server API (`resolve_token`, `resolve_room`, `send_html` with optional
+  `thread_root` threading).
+- `tests/` — `test_config.py`, `test_store.py`, `test_scheduler.py`,
+  `test_matrix.py`, `test_message.py` (unit tests), and `test_server.py`
   (in-process SMTP-to-Matrix end-to-end with `respx`-mocked Matrix).
 
 ## Testing Conventions
@@ -97,7 +122,8 @@ in `tests`.
 ## Git workflow
 
 - Create a descriptive commit message
-- Create one short commented commit per phase, avoid long comments
+- Create one short commented commit per phase, avoid long commit messages!
+- Before commiting append CHANGELOG.md and highlight the changes in your commit.
 - Run formatter and tests before committing
 
 ## Error Resolution

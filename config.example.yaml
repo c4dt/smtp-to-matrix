@@ -1,0 +1,27 @@
+# Example batching config for smtp-to-matrix. Point CONFIG_PATH at a copy.
+#
+# Each received mail is classified in order:
+#   1. Match against batch_emails top-to-bottom -> first match wins.
+#   2. If a batch matched, check that batch's exceptions plus the global
+#      exceptions -> if any match, send now; otherwise hold in that bucket.
+#   3. No batch matched -> send now (the default).
+#
+# Regexes use re.search. Within a rule the set fields are ANDed; across a
+# match_any list the rules are ORed. A rule may set any subset of the fields
+# host, sender, subject, body.
+
+batch_emails:
+  - name: "Newsletters" # digest root title
+    schedule: "0 8 * * *" # cron, 5-field + @macros, server local time
+    match_any:
+      - sender: '.*@newsletter\.example\.com' # sender only
+      - subject: "(?i)weekly digest" # subject only
+      - sender: "monitoring@.*" # sender AND subject
+        subject: "(?i)backup"
+    exceptions: # optional per-batch send-now override
+      match_any:
+        - body: '(?i)\bERROR\b'
+
+exceptions: # global send-now override
+  match_any:
+    - body: '(?i)\berror\b'

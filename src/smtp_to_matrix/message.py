@@ -3,11 +3,25 @@
 from __future__ import annotations
 
 import html
+from dataclasses import dataclass
+from datetime import datetime
 from email import message_from_bytes
 from email.message import EmailMessage
 from email.policy import default
+from email.utils import parsedate_to_datetime
 
 _HEADERS = ("From", "To", "Subject")
+
+
+@dataclass(frozen=True)
+class MailMeta:
+    """Fields extracted from a received mail for matching and summarising."""
+
+    host: str
+    sender: str
+    subject: str
+    body: str
+    date: datetime
 
 
 def _text_body(msg: EmailMessage) -> str:
@@ -23,11 +37,13 @@ def render_email(raw: bytes, hostname: str) -> tuple[str, str]:
     """Parse raw email bytes into ``(plain_body, html_body)`` for Matrix.
 
     The first line is ``Host: {hostname}`` (the server that received the mail),
-    followed by a small ``From``/``To``/``Subject`` header block and the
-    message's text body. Missing headers and bodies are tolerated.
+    followed by the mail's ``Date`` and a small ``From``/``To``/``Subject``
+    header block and the message's text body. Missing headers and bodies are
+    tolerated; the ``Date`` falls back to receive-time when absent.
     """
     msg = message_from_bytes(raw, policy=default)
-    headers = [("Host", hostname)]
+    when = _mail_date(msg).astimezone().strftime("%Y-%m-%d %H:%M")
+    headers = [("Host", hostname), ("Date", when)]
     headers += [(name, msg[name]) for name in _HEADERS if msg[name]]
     body = _text_body(msg).strip()
 
@@ -43,3 +59,30 @@ def render_email(raw: bytes, hostname: str) -> tuple[str, str]:
     html_body = f"{html_headers}<pre>{html.escape(body)}</pre>"
 
     return plain, html_body
+
+
+def _mail_date(msg: EmailMessage) -> datetime:
+    """Return the message ``Date`` (local-aware); fall back to now if missing."""
+    try:
+        date = parsedate_to_datetime(msg["Date"]) if msg["Date"] else None
+    except (ValueError, TypeError):
+        date = None
+    return date or datetime.now().astimezone()
+
+
+def parse_meta(raw: bytes, host: str) -> MailMeta:
+    """Extract the fields used for rule matching, storage and summaries."""
+    msg = message_from_bytes(raw, policy=default)
+    return MailMeta(
+        host=host,
+        sender=str(msg["From"]) if msg["From"] else "",
+        subject=str(msg["Subject"]) if msg["Subject"] else "",
+        body=_text_body(msg).strip(),
+        date=_mail_date(msg),
+    )
+
+
+def summary_line(meta: MailMeta) -> str:
+    """Build the one-line summary: ``date - sender@host - subject``."""
+    when = meta.date.astimezone().strftime("%Y-%m-%d %H:%M")
+    return f"{when} - {meta.sender}@{meta.host} - {meta.subject}"
