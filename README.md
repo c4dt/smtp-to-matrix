@@ -70,7 +70,7 @@ Every received message is rendered — the receiving server's hostname on the fi
 line (`Host: ...`), then a `From`/`To`/`Subject` header block, then the text body.
 
 By default each message is posted immediately as a **one-line summary**
-(`host - date - sender - subject`) with the full rendered body as a **threaded
+(`date - sender@host - subject`) with the full rendered body as a **threaded
 reply** underneath, so the room stays scannable.
 
 ## Summaries, batching & digests
