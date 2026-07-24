@@ -26,14 +26,14 @@ def _log(message: str) -> None:
 
 
 def _digest_header(batch: Batch, rows: list[Row]) -> str:
-    """Summarise a digest: ``host - title - first until last - N message(s)``."""
+    """Summarise a digest: ``date until otherdate - host - title - N message(s)``."""
     dates = sorted(row.date.astimezone() for row in rows)
     span = dates[0].strftime("%Y-%m-%d %H:%M")
     if dates[0] != dates[-1]:
         span += f" until {dates[-1]:%Y-%m-%d %H:%M}"
     count = len(rows)
     noun = "message" if count == 1 else "messages"
-    return f"{rows[0].host} - {batch.name} - {span} - {count} {noun}"
+    return f"{span} - {rows[0].host} - {batch.name} - {count} {noun}"
 
 
 def flush_batch(

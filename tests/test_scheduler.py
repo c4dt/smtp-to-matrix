@@ -57,7 +57,7 @@ def test_flush_posts_root_then_threaded_replies(tmp_path: Path) -> None:
     assert route.call_count == 3
     bodies = [json.loads(c.request.content) for c in route.calls]
     header = bodies[0]["body"]
-    assert header.startswith("mailhost - News - ")
+    assert " - mailhost - News - " in header
     assert header.endswith("- 2 messages")
     assert "m.relates_to" not in bodies[0]
     assert all(b["m.relates_to"]["event_id"] == "$root" for b in bodies[1:])

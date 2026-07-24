@@ -83,6 +83,6 @@ def parse_meta(raw: bytes, host: str) -> MailMeta:
 
 
 def summary_line(meta: MailMeta) -> str:
-    """Build the one-line summary: ``host - date - sender - subject``."""
+    """Build the one-line summary: ``date - sender@host - subject``."""
     when = meta.date.astimezone().strftime("%Y-%m-%d %H:%M")
-    return f"{meta.host} - {when} - {meta.sender} - {meta.subject}"
+    return f"{when} - {meta.sender}@{meta.host} - {meta.subject}"

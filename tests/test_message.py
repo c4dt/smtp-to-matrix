@@ -139,6 +139,4 @@ def test_summary_line_format() -> None:
     )
     meta = parse_meta(raw, HOST)
     expected_time = meta.date.astimezone().strftime("%Y-%m-%d %H:%M")
-    assert summary_line(meta) == (
-        f"{HOST} - {expected_time} - ops@localhost - disk full"
-    )
+    assert summary_line(meta) == (f"{expected_time} - ops@localhost@{HOST} - disk full")
