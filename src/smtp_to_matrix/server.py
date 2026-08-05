@@ -51,19 +51,20 @@ class MatrixHandler:
         self.config = config
         self.store = store
 
-    def _send_now(self, summary: str, plain: str, html_body: str) -> str:
-        """Post the summary root, then the full body as a threaded reply."""
+    def _send_now(self, summary: str, messages: list[tuple[str, str]]) -> str:
+        """Post the summary root, then each message chunk as a threaded reply."""
         root = matrix.send_html(
             self.homeserver, self.token, self.room_id, summary, html.escape(summary)
         )
-        matrix.send_html(
-            self.homeserver,
-            self.token,
-            self.room_id,
-            plain,
-            html_body,
-            thread_root=root,
-        )
+        for plain, html_body in messages:
+            matrix.send_html(
+                self.homeserver,
+                self.token,
+                self.room_id,
+                plain,
+                html_body,
+                thread_root=root,
+            )
         return root
 
     async def handle_DATA(self, server, session, envelope) -> str:  # noqa: N802
@@ -75,10 +76,10 @@ class MatrixHandler:
             _log(f"held in batch {batch!r}: {meta.subject!r}")
             return "250 Message accepted for delivery"
 
-        plain, html_body = render_email(envelope.content, self.hostname)
+        messages = render_email(envelope.content, self.hostname)
         summary = summary_line(meta)
         try:
-            root = await asyncio.to_thread(self._send_now, summary, plain, html_body)
+            root = await asyncio.to_thread(self._send_now, summary, messages)
         except httpx.HTTPError as exc:
             _log(f"delivery failed: {exc}")
             return "451 Requested action aborted: Matrix delivery failed"

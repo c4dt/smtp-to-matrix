@@ -6,6 +6,7 @@ import httpx
 import respx
 
 from smtp_to_matrix import matrix
+from smtp_to_matrix.message import render_email
 
 HOMESERVER = "https://matrix.test"
 ROOM_ID = "!room:test"
@@ -54,3 +55,36 @@ def test_no_thread_relation_without_root() -> None:
 
     body = json.loads(route.calls.last.request.content)
     assert "m.relates_to" not in body
+
+
+@respx.mock
+def test_large_message_is_sent_in_parts() -> None:
+    """Large messages should be split into multiple Matrix events."""
+    route = respx.route(method="PUT", url__regex=r".*/send/m\.room\.message/.*").mock(
+        return_value=httpx.Response(200, json={"event_id": "$evt"})
+    )
+    # Build a large raw message and let render_email split it into parts. The
+    # client code would post a summary root first, then each chunk threaded
+    # underneath — so the first PUT has no thread relation, subsequent ones do.
+    large = "A" * 7000
+    raw = f"Subject: big\n\n{large}\n".encode()
+
+    parts = render_email(raw, "senderhost")
+    assert len(parts) >= 2
+    # Header block should appear only in the first chunk's HTML
+    assert "<b>Host:</b>" in parts[0][1]
+    assert "<b>Host:</b>" not in parts[1][1]
+
+    # Simulate sending: root summary first
+    root = matrix.send_html(HOMESERVER, TOKEN, ROOM_ID, "summary", "<pre>summary</pre>")
+    for plain, html in parts:
+        matrix.send_html(HOMESERVER, TOKEN, ROOM_ID, plain, html, thread_root=root)
+
+    # Should have been split into multiple PUTs (one for the summary + N parts)
+    assert route.call_count >= 2
+
+    first_body = json.loads(route.calls[0].request.content)
+    assert "m.relates_to" not in first_body
+
+    second_body = json.loads(route.calls[1].request.content)
+    assert "m.relates_to" in second_body

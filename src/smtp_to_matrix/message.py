@@ -12,6 +12,9 @@ from email.utils import parsedate_to_datetime
 
 from bs4 import BeautifulSoup
 
+# Maximum size (bytes) per Matrix event body. Keep under the server limit.
+_MAX_EVENT_BYTES = 6000
+
 _HEADERS = ("From", "To", "Subject")
 
 
@@ -40,7 +43,7 @@ def _is_html_email(msg: EmailMessage) -> bool:
     return any(part.get_content_type() == "text/html" for part in msg.walk())
 
 
-def render_email(raw: bytes, hostname: str) -> tuple[str, str]:
+def render_email(raw: bytes, hostname: str) -> list[tuple[str, str]]:
     """Parse raw email bytes into ``(plain_body, html_body)`` for Matrix.
 
     The first line is ``Host: {hostname}`` (the server that received the mail),
@@ -66,16 +69,75 @@ def render_email(raw: bytes, hostname: str) -> tuple[str, str]:
 
     plain_lines = [f"{name}: {value}" for name, value in headers]
     plain_lines.append("")
-    plain_lines.append(body)
-    plain = "\n".join(plain_lines).strip()
+    # We'll prepare the full formatted text and the html-escaped version;
+    # chunking will operate on the escaped text so sizes match the bytes sent.
+    plain_full = "\n".join(plain_lines + [formatted_body]).strip()
 
     html_headers = "".join(
         f"<b>{html.escape(name)}:</b> {html.escape(str(value))}<br>\n"
         for name, value in headers
     )
-    html_body = f"{html_headers}<pre>{html.escape(formatted_body)}</pre>"
+    escaped_full = html.escape(formatted_body)
 
-    return plain, html_body
+    # If the message fits within a single event, return a single chunk.
+    single_html = f"{html_headers}<pre>{escaped_full}</pre>"
+    if len(single_html.encode()) <= _MAX_EVENT_BYTES:
+        return [(plain_full, single_html)]
+
+    # Otherwise chunk the escaped content. For chunking we split on newlines, but
+    # if a single line is too long, we further split it into character pieces.
+    lines = escaped_full.split("\n")
+    chunks: list[str] = []
+    current: list[str] = []
+
+    def flush_current() -> None:
+        if current:
+            chunks.append("\n".join(current))
+            current.clear()
+
+    overhead = len(f"{html_headers}<pre></pre>".encode())
+    for line in lines:
+        # Try to append the line to the current chunk and see if it still fits.
+        tentative = "\n".join(current + [line]) if current else line
+        size = len((f"{html_headers}<pre>{tentative}</pre>").encode())
+        if size <= _MAX_EVENT_BYTES:
+            current.append(line)
+            continue
+
+        # If the single line alone is larger than max, split by characters.
+        if len((f"{html_headers}<pre>{line}</pre>").encode()) > _MAX_EVENT_BYTES:
+            # flush what we have first
+            flush_current()
+            # split the long line into byte-sized pieces (approx)
+            remaining = line
+            # approximate per-chunk capacity for content
+            capacity = _MAX_EVENT_BYTES - overhead - 16
+            while remaining:
+                part = remaining[:capacity]
+                chunks.append(part)
+                remaining = remaining[capacity:]
+            continue
+
+        # Otherwise flush current and start a new chunk with this line.
+        flush_current()
+        current.append(line)
+
+    flush_current()
+
+    # Build final list of (plain, html) messages. Plain text fallbacks should be
+    # minimal and instruct the user to view HTML; include part indices.
+    total = len(chunks)
+    out: list[tuple[str, str]] = []
+    for i, chunk_text in enumerate(chunks):
+        part_plain = f"Message part {i + 1}/{total} — view HTML for content"
+        # Include the header block only on the first chunk; follow-ups omit it
+        # to avoid repeating Host/Date/From/To/Subject on every event.
+        if i == 0:
+            part_html = f"{html_headers}<pre>{chunk_text}</pre>"
+        else:
+            part_html = f"<pre>{chunk_text}</pre>"
+        out.append((part_plain, part_html))
+    return out
 
 
 def _mail_date(msg: EmailMessage) -> datetime:

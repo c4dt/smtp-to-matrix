@@ -8,9 +8,9 @@ event loop; the blocking Matrix HTTP calls run in a worker thread.
 from __future__ import annotations
 
 import asyncio
-import time
 import html
 import sys
+import time
 from datetime import datetime
 
 from croniter import croniter
@@ -56,15 +56,30 @@ def flush_batch(
         homeserver, token, room_id, header, f"{html.escape(header)}"
     )
     for row in rows:
-        plain, html_body = render_email(row.raw, row.host)
+        messages = render_email(row.raw, row.host)
         _log(f"sending message {row.id} in batch {batch.name!r}")
-        time.sleep(1)
-        try:
-            matrix.send_html(homeserver, token, room_id, plain, html_body, thread_root=root)
-        except:
-            _log(f"failed to send message {row.id}. Trying again in 1 minute")
-            time.sleep(60)
-            matrix.send_html(homeserver, token, room_id, plain, html_body, thread_root=root)
+        for plain, html_body in messages:
+            time.sleep(1)
+            try:
+                matrix.send_html(
+                    homeserver,
+                    token,
+                    room_id,
+                    plain,
+                    html_body,
+                    thread_root=root,
+                )
+            except Exception:
+                _log(f"failed to send message {row.id}. Trying again in 1 minute")
+                time.sleep(60)
+                matrix.send_html(
+                    homeserver,
+                    token,
+                    room_id,
+                    plain,
+                    html_body,
+                    thread_root=root,
+                )
 
         # Delete right after a successful send so a later failure can't resurrect
         # an already-delivered mail on the next flush.

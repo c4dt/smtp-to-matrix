@@ -21,16 +21,18 @@ def _build(**parts: str) -> bytes:
 
 
 def test_hostname_is_first_line() -> None:
-    plain, html_body = render_email(_build(subject="hi", body="x"), HOST)
+    msgs = render_email(_build(subject="hi", body="x"), HOST)
+    plain, html_body = msgs[0]
     assert plain.splitlines()[0] == f"Host: {HOST}"
     assert html_body.startswith(f"<b>Host:</b> {HOST}<br>")
 
 
 def test_headers_and_body_in_plain() -> None:
-    plain, _ = render_email(
+    msgs = render_email(
         _build(**{"from": "a@x", "to": "b@y", "subject": "hi", "body": "hello world"}),
         HOST,
     )
+    plain, _ = msgs[0]
     assert "From: a@x" in plain
     assert "To: b@y" in plain
     assert "Subject: hi" in plain
@@ -38,15 +40,15 @@ def test_headers_and_body_in_plain() -> None:
 
 
 def test_html_escapes_content() -> None:
-    _, html_body = render_email(
-        _build(**{"subject": "<danger>", "body": "1 < 2 & 3"}), HOST
-    )
+    msgs = render_email(_build(**{"subject": "<danger>", "body": "1 < 2 & 3"}), HOST)
+    _, html_body = msgs[0]
     assert "<b>Subject:</b> &lt;danger&gt;" in html_body
     assert "<pre>1 &lt; 2 &amp; 3</pre>" in html_body
 
 
 def test_missing_headers_tolerated() -> None:
-    plain, html_body = render_email(_build(body="just a body"), HOST)
+    msgs = render_email(_build(body="just a body"), HOST)
+    plain, html_body = msgs[0]
     lines = plain.splitlines()
     assert lines[0] == f"Host: {HOST}"
     assert lines[1].startswith("Date: ")
@@ -57,7 +59,8 @@ def test_missing_headers_tolerated() -> None:
 
 def test_date_is_second_line() -> None:
     raw = _build(subject="hi", date="Mon, 02 Jan 2023 03:04:05 +0000", body="x")
-    plain, _ = render_email(raw, HOST)
+    msgs = render_email(raw, HOST)
+    plain, _ = msgs[0]
     lines = plain.splitlines()
     assert lines[0] == f"Host: {HOST}"
     assert lines[1].startswith("Date: ")
@@ -65,7 +68,8 @@ def test_date_is_second_line() -> None:
 
 def test_date_matches_mail_header() -> None:
     raw = _build(subject="hi", date="Mon, 02 Jan 2023 03:04:05 +0000", body="x")
-    plain, _ = render_email(raw, HOST)
+    msgs = render_email(raw, HOST)
+    plain, _ = msgs[0]
     expected = (
         parsedate_to_datetime("Mon, 02 Jan 2023 03:04:05 +0000")
         .astimezone()
@@ -75,7 +79,8 @@ def test_date_matches_mail_header() -> None:
 
 
 def test_missing_date_header_still_renders_date_line() -> None:
-    plain, _ = render_email(_build(subject="hi", body="x"), HOST)
+    msgs = render_email(_build(subject="hi", body="x"), HOST)
+    plain, _ = msgs[0]
     line = plain.splitlines()[1]
     assert line.startswith("Date: ")
     assert _DATE_RE.fullmatch(line.removeprefix("Date: "))
@@ -86,7 +91,8 @@ def test_multipart_prefers_plain_text() -> None:
     msg["Subject"] = "multi"
     msg.set_content("the plain part")
     msg.add_alternative("<p>the html part</p>", subtype="html")
-    plain, _ = render_email(msg.as_bytes(), HOST)
+    msgs = render_email(msg.as_bytes(), HOST)
+    plain, _ = msgs[0]
     assert "the plain part" in plain
     assert "the html part" not in plain
 
@@ -95,13 +101,15 @@ def test_html_only_message_falls_back_to_html_body() -> None:
     msg = EmailMessage()
     msg["Subject"] = "htmlonly"
     msg.set_content("<p>only html</p>", subtype="html")
-    plain, _ = render_email(msg.as_bytes(), HOST)
+    msgs = render_email(msg.as_bytes(), HOST)
+    plain, _ = msgs[0]
     assert "only html" in plain
 
 
 def test_rfc2047_encoded_subject_decoded() -> None:
     raw = b"Subject: =?utf-8?q?caf=C3=A9?=\n\nbody\n"
-    plain, _ = render_email(raw, HOST)
+    msgs = render_email(raw, HOST)
+    plain, _ = msgs[0]
     assert "Subject: café" in plain
 
 

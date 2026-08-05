@@ -97,10 +97,13 @@ def test_flush_clears_the_store(tmp_path: Path) -> None:
 @respx.mock
 def test_flush_deletes_delivered_and_keeps_failed(tmp_path: Path) -> None:
     # Root ok, first reply ok, second reply 500 -> raise_for_status raises.
+    # Provide an extra response to cover a retry attempt when messages are
+    # split into multiple PUTs (chunking behaviour).
     respx.route(method="PUT", url__regex=r".*/send/m\.room\.message/.*").mock(
         side_effect=[
             httpx.Response(200, json={"event_id": "$root"}),
             httpx.Response(200, json={"event_id": "$r1"}),
+            httpx.Response(500, json={"errcode": "M_UNKNOWN"}),
             httpx.Response(500, json={"errcode": "M_UNKNOWN"}),
         ]
     )
