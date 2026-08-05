@@ -1,6 +1,25 @@
 # Changelog
 
-## Unreleased
+## v0.0.4 (unreleased)
+
+- message: chunk messages larger than Matrix event size into multiple
+  threaded events; preserve HTML formatted parts and provide small plaintext
+  fallbacks for clients that don't support HTML.
+- Tests updated to cover chunking behavior and combined plain+HTML size accounting.
+
+## v0.0.3 (unreleased)
+
+- scheduler: retry again in 1 minute after failed delivery
+
+## v0.0.2 (unreleased)
+
+- Automatically convert HTML emails to plaintext
+
+## v0.0.1 (unreleased)
 
 - Reformat the send-now summary line to `date - sender@host - subject`.
 - Reformat the batch digest header to `date until otherdate - host - batch name - X messages`.
+
+## v0.0.0 (unreleased)
+
+- Initialize project
