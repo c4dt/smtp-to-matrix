@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.0.5 (unreleased)
+
+- message: update chunk limit to 60000 and make it configurable via env variable
+
 ## v0.0.4 (unreleased)
 
 - message: chunk messages larger than Matrix event size into multiple

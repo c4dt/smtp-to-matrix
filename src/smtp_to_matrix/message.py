@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import html
+import os
 from dataclasses import dataclass
 from datetime import datetime
 from email import message_from_bytes
@@ -13,7 +14,7 @@ from email.utils import parsedate_to_datetime
 from bs4 import BeautifulSoup
 
 # Maximum size (bytes) per Matrix event body. Keep under the server limit.
-_MAX_EVENT_BYTES = 6000
+_MAX_EVENT_BYTES = int(os.environ.get("MATRIX_MAX_MESSAGE_SIZE", "60000"))
 
 _HEADERS = ("From", "To", "Subject")
 

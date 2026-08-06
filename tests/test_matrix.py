@@ -66,7 +66,7 @@ def test_large_message_is_sent_in_parts() -> None:
     # Build a large raw message and let render_email split it into parts. The
     # client code would post a summary root first, then each chunk threaded
     # underneath — so the first PUT has no thread relation, subsequent ones do.
-    large = "A" * 7000
+    large = "A" * 70000
     raw = f"Subject: big\n\n{large}\n".encode()
 
     parts = render_email(raw, "senderhost")
