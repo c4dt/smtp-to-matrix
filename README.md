@@ -12,18 +12,19 @@ MTA). The target Matrix room must be **unencrypted**.
 
 The server reads its configuration from environment variables:
 
-| Variable                | Required | Description                                                            |
-| ----------------------- | -------- | ---------------------------------------------------------------------- |
-| `MATRIX_HOMESERVER_URL` | yes      | Base URL of the homeserver, e.g. `https://matrix.example.org`.         |
-| `MATRIX_ROOM_ID`        | yes      | Target room id `!id:server` or alias `#name:server`.                   |
-| `MATRIX_ACCESS_TOKEN`   | either   | A ready access token. Preferred over login.                            |
-| `MATRIX_LOGIN`          | either   | Username for password login (used when no access token is set).        |
-| `MATRIX_PASS`           | either   | Password for password login.                                           |
-| `MATRIX_HOST_LABEL`     | no       | Label for the `Host:` line of each message. Default: machine hostname. |
-| `SMTP_HOST`             | no       | Bind address for the listener. Default `0.0.0.0`.                      |
-| `SMTP_PORT`             | no       | Listener port. Default `25` (needs root/`CAP_NET_BIND_SERVICE`).       |
-| `CONFIG_PATH`           | no       | Path to the batching config (see below). Unset: every mail sent now.   |
-| `DB_PATH`               | no       | SQLite file for batched mail. Default `pending_mail.db`.               |
+| Variable                 | Required | Description                                                            |
+| -----------------------  | -------- | ---------------------------------------------------------------------- |
+| `MATRIX_HOMESERVER_URL`  | yes      | Base URL of the homeserver, e.g. `https://matrix.example.org`.         |
+| `MATRIX_ROOM_ID`         | yes      | Target room id `!id:server` or alias `#name:server`.                   |
+| `MATRIX_ACCESS_TOKEN`    | either   | A ready access token. Preferred over login.                            |
+| `MATRIX_LOGIN`           | either   | Username for password login (used when no access token is set).        |
+| `MATRIX_PASS`            | either   | Password for password login.                                           |
+| `MATRIX_HOST_LABEL`      | no       | Label for the `Host:` line of each message. Default: machine hostname. |
+| `MATRIX_MAX_MESSAGE_SIZE`| no       | The maximum size of a message sent via Matrix in bytes. Default: 60000 |
+| `SMTP_HOST`              | no       | Bind address for the listener. Default `0.0.0.0`.                      |
+| `SMTP_PORT`              | no       | Listener port. Default `25` (needs root/`CAP_NET_BIND_SERVICE`).       |
+| `CONFIG_PATH`            | no       | Path to the batching config (see below). Unset: every mail sent now.   |
+| `DB_PATH`                | no       | SQLite file for batched mail. Default `pending_mail.db`.               |
 
 For development, copy the example file, fill it in, and export it into your shell:
 
