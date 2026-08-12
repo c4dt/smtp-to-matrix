@@ -16,7 +16,7 @@ from datetime import datetime
 from croniter import croniter
 
 from smtp_to_matrix import matrix
-from smtp_to_matrix.config import Batch
+from smtp_to_matrix.config import Batch, Config
 from smtp_to_matrix.message import render_email
 from smtp_to_matrix.store import Row, Store
 
@@ -42,6 +42,7 @@ def flush_batch(
     token: str,
     room_id: str,
     store: Store,
+    cfg: Config,
     batch: Batch,
 ) -> None:
     """Post a batch's held mail as a threaded digest, then delete the rows."""
@@ -52,6 +53,8 @@ def flush_batch(
     noun = "message" if count == 1 else "messages"
     _log(f"sending batch {batch.name!r} digest: {count} {noun}")
     header = _digest_header(batch, rows)
+    if cfg.default_severity is not None:
+        header = f"{cfg.default_severity.emoji} {header}"
     root = matrix.send_html(
         homeserver, token, room_id, header, f"{html.escape(header)}"
     )
@@ -91,9 +94,10 @@ async def run(
     token: str,
     room_id: str,
     store: Store,
-    batches: list[Batch],
+    cfg: Config,
 ) -> None:
     """Sleep until the soonest batch fires, flush the due batches, repeat."""
+    batches = cfg.batches
     schedules = {
         batch.name: croniter(batch.schedule, datetime.now()) for batch in batches
     }
@@ -109,7 +113,13 @@ async def run(
             if next_fire[batch.name] <= now:
                 try:
                     await asyncio.to_thread(
-                        flush_batch, homeserver, token, room_id, store, batch
+                        flush_batch,
+                        homeserver,
+                        token,
+                        room_id,
+                        store,
+                        cfg,
+                        batch,
                     )
                 except Exception as exc:  # noqa: BLE001 - one bad flush must not kill the loop
                     _log(f"flush failed for {batch.name!r}: {exc}")
