@@ -253,7 +253,7 @@ severity:
     - name: "info"
       emoji: "ℹ️"
 """
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ValueError):
         config.load(_write(tmp_path, text))
 
 
@@ -265,5 +265,5 @@ severity:
     - name: "info"
       emoji: "ℹ️"
 """
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ValueError):
         config.load(_write(tmp_path, text))

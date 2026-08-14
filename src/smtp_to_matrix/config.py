@@ -119,24 +119,6 @@ def _build_batch(raw: dict[str, object]) -> Batch:
     )
 
 
-def _build_severity(raw: dict[str, object]) -> Severity:
-    return Severity(
-        name=str(raw["name"]),
-        emoji=str(raw["emoji"]),
-        match=_compile_rules(raw.get("match_any")),  # type: ignore[arg-type]
-    )
-
-
-def _find_severity(levels: list[Severity], name: str | None) -> Severity | None:
-    """Return the level with ``name`` or ``None`` when ``name`` is falsy."""
-    if not name:
-        return None
-    for level in levels:
-        if level.name == name:
-            return level
-    raise RuntimeError(f"unknown severity level: {name!r}")
-
-
 def load(path: str | None) -> Config:
     """Load and validate the config; ``None`` yields an empty config."""
     if not path:
@@ -145,15 +127,36 @@ def load(path: str | None) -> Config:
         data = yaml.safe_load(handle) or {}
     batches = [_build_batch(raw) for raw in data.get("batch_emails", [])]
     exceptions = _compile_rules((data.get("exceptions") or {}).get("match_any"))
-    levels = [
-        _build_severity(raw)  # type: ignore[arg-type]
-        for raw in (data.get("severity") or {}).get("levels", [])
-    ]
     sev_raw = data.get("severity") or {}
-    default_sev = _find_severity(levels, sev_raw.get("default"))  # type: ignore[arg-type]
-    exception_sev = _find_severity(  # type: ignore[arg-type]
-        levels, sev_raw.get("exception_severity")
-    )
+
+    levels: list[Severity] = []
+    severity_by_name: dict[str, Severity] = {}
+    for raw in sev_raw.get("levels", []):
+        sev = Severity(
+            name=str(raw["name"]),
+            emoji=str(raw["emoji"]),
+            match=_compile_rules(raw.get("match_any")),
+        )
+        levels.append(sev)
+        severity_by_name[sev.name] = sev
+    default_sev: Severity | None = None
+    exception_sev: Severity | None = None
+
+    for var_name, name in (
+        ("default_sev", sev_raw.get("default")),
+        ("exception_sev", sev_raw.get("exception_severity")),
+    ):
+        if not name:
+            continue
+        try:
+            val = severity_by_name[name]
+        except KeyError as err:
+            raise ValueError(f"unknown severity level: {name!r}") from err
+        if var_name == "default_sev":
+            default_sev = val
+        else:
+            exception_sev = val
+
     return Config(
         batches=batches,
         exceptions=exceptions,
