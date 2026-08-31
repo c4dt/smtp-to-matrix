@@ -10,7 +10,7 @@ import pytest
 import respx
 
 from smtp_to_matrix import scheduler
-from smtp_to_matrix.config import Batch
+from smtp_to_matrix.config import Batch, Config, Severity
 from smtp_to_matrix.message import MailMeta
 from smtp_to_matrix.scheduler import flush_batch, run
 from smtp_to_matrix.store import Store
@@ -18,6 +18,9 @@ from smtp_to_matrix.store import Store
 HOMESERVER = "https://matrix.test"
 ROOM_ID = "!room:test"
 TOKEN = "tok_test"
+
+SEVERITY_ERROR = Severity(name="error", emoji="⚠️", match=[])
+SEVERITY_INFO = Severity(name="info", emoji="ℹ️", match=[])
 
 
 @pytest.fixture
@@ -43,6 +46,19 @@ def _seeded_store(tmp_path: Path) -> Store:
     return store
 
 
+def _cfg(
+    batch: Batch | None = None,
+    levels: list[Severity] | None = None,
+    default_severity: Severity | None = None,
+) -> Config:
+    return Config(
+        batches=[batch] if batch else [],
+        exceptions=[],
+        levels=levels or [],
+        default_severity=default_severity,
+    )
+
+
 @respx.mock
 def test_flush_posts_root_then_threaded_replies(tmp_path: Path) -> None:
     route = respx.route(method="PUT", url__regex=r".*/send/m\.room\.message/.*").mock(
@@ -50,8 +66,9 @@ def test_flush_posts_root_then_threaded_replies(tmp_path: Path) -> None:
     )
     store = _seeded_store(tmp_path)
     batch = Batch(name="News", schedule="@daily", match=[])
+    cfg = _cfg(batch=batch)
 
-    flush_batch(HOMESERVER, TOKEN, ROOM_ID, store, batch)
+    flush_batch(HOMESERVER, TOKEN, ROOM_ID, store, cfg, batch)
 
     # One root digest header + one reply per held mail.
     assert route.call_count == 3
@@ -74,8 +91,9 @@ def test_digest_header_counts_single_message(tmp_path: Path) -> None:
     store.init()
     store.add("News", b"Subject: one\n\nonly body\n", _meta("one"))
     batch = Batch(name="News", schedule="@daily", match=[])
+    cfg = _cfg(batch=batch)
 
-    flush_batch(HOMESERVER, TOKEN, ROOM_ID, store, batch)
+    flush_batch(HOMESERVER, TOKEN, ROOM_ID, store, cfg, batch)
 
     header = json.loads(route.calls[0].request.content)["body"]
     assert header.endswith("- 1 message")
@@ -88,8 +106,9 @@ def test_flush_clears_the_store(tmp_path: Path) -> None:
     )
     store = _seeded_store(tmp_path)
     batch = Batch(name="News", schedule="@daily", match=[])
+    cfg = _cfg(batch=batch)
 
-    flush_batch(HOMESERVER, TOKEN, ROOM_ID, store, batch)
+    flush_batch(HOMESERVER, TOKEN, ROOM_ID, store, cfg, batch)
 
     assert store.pop("News") == []
 
@@ -109,9 +128,10 @@ def test_flush_deletes_delivered_and_keeps_failed(tmp_path: Path) -> None:
     )
     store = _seeded_store(tmp_path)
     batch = Batch(name="News", schedule="@daily", match=[])
+    cfg = _cfg(batch=batch)
 
     with pytest.raises(httpx.HTTPStatusError):
-        flush_batch(HOMESERVER, TOKEN, ROOM_ID, store, batch)
+        flush_batch(HOMESERVER, TOKEN, ROOM_ID, store, cfg, batch)
 
     # First mail was delivered and deleted; the undelivered one is retained.
     remaining = store.pop("News")
@@ -146,10 +166,11 @@ async def test_run_survives_failing_flush(
     monkeypatch.setattr(scheduler, "croniter", _FakeCron)
     store = _seeded_store(tmp_path)
     batch = Batch(name="News", schedule="@daily", match=[])
+    cfg = _cfg(batch=batch)
 
     # run() never returns; the cancel scope stops it after the failing flush.
     with anyio.move_on_after(0.2):
-        await run(HOMESERVER, TOKEN, ROOM_ID, store, [batch])
+        await run(HOMESERVER, TOKEN, ROOM_ID, store, cfg)
 
     # The flush was attempted and its failure did not propagate out of run().
     assert attempts
@@ -163,7 +184,48 @@ def test_flush_empty_batch_posts_nothing(tmp_path: Path) -> None:
     store = Store(str(tmp_path / "pending.db"))
     store.init()
     batch = Batch(name="Empty", schedule="@daily", match=[])
+    cfg = _cfg(batch=batch)
 
-    flush_batch(HOMESERVER, TOKEN, ROOM_ID, store, batch)
+    flush_batch(HOMESERVER, TOKEN, ROOM_ID, store, cfg, batch)
 
     assert not route.called
+
+
+@respx.mock
+def test_flush_prepends_default_severity_emoji_to_header(tmp_path: Path) -> None:
+    route = respx.route(method="PUT", url__regex=r".*/send/m\.room\.message/.*").mock(
+        return_value=httpx.Response(200, json={"event_id": "$root"})
+    )
+    store = _seeded_store(tmp_path)
+    batch = Batch(name="News", schedule="@daily", match=[])
+    cfg = _cfg(batch=batch, default_severity=SEVERITY_INFO)
+
+    flush_batch(HOMESERVER, TOKEN, ROOM_ID, store, cfg, batch)
+
+    bodies = [json.loads(c.request.content) for c in route.calls]
+    # The digest header (root) should start with the info emoji.
+    assert bodies[0]["body"].startswith("ℹ️")
+    # Individual held mails should NOT carry the emoji.
+    assert not bodies[1]["body"].startswith("ℹ️")
+    assert not bodies[2]["body"].startswith("ℹ️")
+
+
+@respx.mock
+def test_flush_no_severity_means_no_emoji(tmp_path: Path) -> None:
+    route = respx.route(method="PUT", url__regex=r".*/send/m\.room\.message/.*").mock(
+        return_value=httpx.Response(200, json={"event_id": "$root"})
+    )
+    store = _seeded_store(tmp_path)
+    batch = Batch(name="News", schedule="@daily", match=[])
+    cfg = _cfg(batch=batch)
+
+    flush_batch(HOMESERVER, TOKEN, ROOM_ID, store, cfg, batch)
+
+    bodies = [json.loads(c.request.content) for c in route.calls]
+    # No emoji on the digest header or on individual messages.
+    assert not bodies[0]["body"].startswith("⚠️")
+    assert not bodies[0]["body"].startswith("ℹ️")
+    assert not bodies[0]["body"].startswith("✅")
+    assert not bodies[1]["body"].startswith("⚠️")
+    assert not bodies[1]["body"].startswith("ℹ️")
+    assert not bodies[1]["body"].startswith("✅")

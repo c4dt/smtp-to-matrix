@@ -32,6 +32,23 @@ batch_emails:
         - body: '(?i)urgent'
 """
 
+SEVERITY_CONFIG = """\
+severity:
+  default: "info"
+  exception_severity: "error"
+  levels:
+    - name: "error"
+      emoji: "\\u26a0\\ufe0f"
+      match_any:
+        - body: '(?i)\\bERROR\\b'
+    - name: "success"
+      emoji: "\\u2705"
+      match_any:
+        - subject: '(?i)\\bsuccess\\b'
+    - name: "info"
+      emoji: "\\u2139\\ufe0f"
+"""
+
 
 def _free_port() -> int:
     with socket.socket() as sock:
@@ -149,6 +166,59 @@ def test_per_batch_exception_sends_now(tmp_path: Path) -> None:
 
     assert route.call_count == 2
     assert store.pop("News") == []
+
+
+@respx.mock
+def test_severity_emoji_prepended_to_summary(tmp_path: Path) -> None:
+    route = _mock_send()
+    store = _store(tmp_path)
+    cfg = config.load(str(_write(tmp_path, SEVERITY_CONFIG)))
+
+    with _server(cfg, store) as controller:
+        _send(controller, "Subject: alert\n\nERROR: disk full\n")
+
+    # Summary root event should start with the error emoji.
+    summary = route.calls[0].request.content.decode()
+    assert "⚠️" in summary
+
+
+@respx.mock
+def test_severity_default_emoji_used_when_no_match(tmp_path: Path) -> None:
+    route = _mock_send()
+    store = _store(tmp_path)
+    cfg = config.load(str(_write(tmp_path, SEVERITY_CONFIG)))
+
+    with _server(cfg, store) as controller:
+        _send(controller, "Subject: hello\n\njust a note\n")
+
+    summary = route.calls[0].request.content.decode()
+    assert "ℹ️" in summary
+
+
+@respx.mock
+def test_severity_exception_uses_error_emoji(tmp_path: Path) -> None:
+    route = _mock_send()
+    store = _store(tmp_path)
+    cfg = config.load(str(_write(tmp_path, BATCH_CONFIG + "\n" + SEVERITY_CONFIG)))
+
+    with _server(cfg, store) as controller:
+        _send(controller, "Subject: Newsletter\n\nurgent: act now\n")
+
+    summary = route.calls[0].request.content.decode()
+    assert "⚠️" in summary
+
+
+@respx.mock
+def test_no_severity_config_means_no_emoji(running_server: Controller) -> None:
+    route = _mock_send()
+
+    message = "Subject: alert\nFrom: ops@localhost\n\nbody\n"
+    _send(running_server, message)
+
+    summary = route.calls[0].request.content.decode()
+    assert "⚠️" not in summary
+    assert "ℹ️" not in summary
+    assert "✅" not in summary
 
 
 def _write(tmp_path: Path, text: str) -> Path:

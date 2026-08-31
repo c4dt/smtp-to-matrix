@@ -1,10 +1,14 @@
-"""Load and validate the batching config; classify mail into buckets.
+"""Load and validate the batching and severity config; classify mail.
 
 The config (``CONFIG_PATH``, YAML) defines ``batch_emails`` buckets — each with a
 cron ``schedule`` and a ``match_any`` list of rules — plus optional per-batch and
 global ``exceptions``. Rules use ``re.search`` regexes on the ``host``, ``sender``,
 ``subject`` and ``body`` fields; set fields within a rule are ANDed, rules within
 a ``match_any`` are ORed.
+
+A ``severity`` section maps mail to emoji-prefixed levels (error, info, …) using
+the same rule mechanism. ``default`` and ``exception_severity`` name a level to
+use when no rule matches or a batch exception triggers send-now.
 """
 
 from __future__ import annotations
@@ -45,11 +49,35 @@ class Batch:
 
 
 @dataclass(frozen=True)
+class Severity:
+    """A named severity level with an emoji prefix and matching rules."""
+
+    name: str
+    emoji: str
+    match: list[Rule]
+
+
+@dataclass(frozen=True)
+class Classification:
+    """Result of classifying a mail: which batch (if any) and why send-now.
+
+    ``batch`` is ``None`` when the mail should be sent immediately. ``exception``
+    is ``True`` when a batch matched but an exception overrode it to send-now.
+    """
+
+    batch: str | None
+    exception: bool
+
+
+@dataclass(frozen=True)
 class Config:
-    """Parsed configuration: the buckets and the global exceptions."""
+    """Parsed configuration: batches, exceptions and severity levels."""
 
     batches: list[Batch]
     exceptions: list[Rule]
+    levels: list[Severity] = field(default_factory=list)
+    default_severity: Severity | None = None
+    exception_severity: Severity | None = None
 
     @classmethod
     def empty(cls) -> Config:
@@ -99,11 +127,47 @@ def load(path: str | None) -> Config:
         data = yaml.safe_load(handle) or {}
     batches = [_build_batch(raw) for raw in data.get("batch_emails", [])]
     exceptions = _compile_rules((data.get("exceptions") or {}).get("match_any"))
-    return Config(batches=batches, exceptions=exceptions)
+    sev_raw = data.get("severity") or {}
+
+    levels: list[Severity] = []
+    severity_by_name: dict[str, Severity] = {}
+    for raw in sev_raw.get("levels", []):
+        sev = Severity(
+            name=str(raw["name"]),
+            emoji=str(raw["emoji"]),
+            match=_compile_rules(raw.get("match_any")),
+        )
+        levels.append(sev)
+        severity_by_name[sev.name] = sev
+    default_sev: Severity | None = None
+    exception_sev: Severity | None = None
+
+    for var_name, name in (
+        ("default_sev", sev_raw.get("default")),
+        ("exception_sev", sev_raw.get("exception_severity")),
+    ):
+        if not name:
+            continue
+        try:
+            val = severity_by_name[name]
+        except KeyError as err:
+            raise ValueError(f"unknown severity level: {name!r}") from err
+        if var_name == "default_sev":
+            default_sev = val
+        else:
+            exception_sev = val
+
+    return Config(
+        batches=batches,
+        exceptions=exceptions,
+        levels=levels,
+        default_severity=default_sev,
+        exception_severity=exception_sev,
+    )
 
 
-def classify(config: Config, meta: MailMeta) -> str | None:
-    """Return the batch name to hold this mail in, or ``None`` to send now.
+def classify(config: Config, meta: MailMeta) -> Classification:
+    """Classify a mail: which batch to hold it in, or send-now with reason.
 
     First matching batch wins; a matched batch is overridden to send-now when any
     of its own or the global exceptions match. No batch match sends now.
@@ -111,6 +175,14 @@ def classify(config: Config, meta: MailMeta) -> str | None:
     for batch in config.batches:
         if matches_any(batch.match, meta):
             if matches_any(batch.exceptions + config.exceptions, meta):
-                return None
-            return batch.name
+                return Classification(batch=None, exception=True)
+            return Classification(batch=batch.name, exception=False)
+    return Classification(batch=None, exception=False)
+
+
+def classify_severity(config: Config, meta: MailMeta) -> Severity | None:
+    """Return the first matching severity level, or ``None`` when none match."""
+    for level in config.levels:
+        if matches_any(level.match, meta):
+            return level
     return None

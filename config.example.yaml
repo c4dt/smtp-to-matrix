@@ -9,6 +9,12 @@
 # Regexes use re.search. Within a rule the set fields are ANDed; across a
 # match_any list the rules are ORed. A rule may set any subset of the fields
 # host, sender, subject, body.
+#
+# The severity section (optional) prepends an emoji to each message so the
+# severity is visible at a glance. Levels are matched top-to-bottom (first match
+# wins) using the same rule mechanism as batches. default names the level used
+# when no rule matches; exception_severity names the level used when a batch
+# exception triggers send-now.
 
 batch_emails:
   - name: "Newsletters" # digest root title
@@ -25,3 +31,23 @@ batch_emails:
 exceptions: # global send-now override
   match_any:
     - body: '(?i)\berror\b'
+
+severity:
+  default: "info" # used when no level matches
+  exception_severity: "error" # used when a batch exception sends now
+  levels:
+    - name: "error"
+      emoji: "⚠️"
+      match_any:
+        - subject: '(?i)\bfail(ed|ure)?\b'
+        - subject: '(?i)\bERROR?\b'
+        - subject: '(?i)\bFIRING?\b'
+        - body: '(?i)\bpermission denied?\b'
+        - body: '(?i)\bERROR\b'
+    - name: "success"
+      emoji: "✅"
+      match_any:
+        - subject: '(?i)\bsuccess\b'
+        - body: '(?i)\bcompleted successfully\b'
+    - name: "info"
+      emoji: "ℹ️"

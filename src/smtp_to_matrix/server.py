@@ -18,8 +18,8 @@ import httpx
 from aiosmtpd.controller import Controller
 
 from smtp_to_matrix import config, matrix, scheduler
-from smtp_to_matrix.config import Config
-from smtp_to_matrix.message import parse_meta, render_email, summary_line
+from smtp_to_matrix.config import Config, Severity
+from smtp_to_matrix.message import MailMeta, parse_meta, render_email, summary_line
 from smtp_to_matrix.store import Store
 
 DEFAULT_HOST = "0.0.0.0"
@@ -67,17 +67,28 @@ class MatrixHandler:
             )
         return root
 
+    def _resolve_severity(self, meta: MailMeta, exception: bool) -> Severity | None:
+        """Determine the severity level for a send-now message."""
+        if exception and self.config.exception_severity is not None:
+            return self.config.exception_severity
+        return (
+            config.classify_severity(self.config, meta) or self.config.default_severity
+        )
+
     async def handle_DATA(self, server, session, envelope) -> str:  # noqa: N802
         """Classify the message; send it now or hold it for its batch digest."""
         meta = parse_meta(envelope.content, self.hostname)
-        batch = config.classify(self.config, meta)
-        if batch is not None:
-            self.store.add(batch, envelope.content, meta)
-            _log(f"held in batch {batch!r}: {meta.subject!r}")
+        result = config.classify(self.config, meta)
+        if result.batch is not None:
+            self.store.add(result.batch, envelope.content, meta)
+            _log(f"held in batch {result.batch!r}: {meta.subject!r}")
             return "250 Message accepted for delivery"
 
         messages = render_email(envelope.content, self.hostname)
         summary = summary_line(meta)
+        severity = self._resolve_severity(meta, result.exception)
+        if severity is not None:
+            summary = f"{severity.emoji} {summary}"
         try:
             root = await asyncio.to_thread(self._send_now, summary, messages)
         except httpx.HTTPError as exc:
@@ -116,7 +127,7 @@ def main() -> int:
     _log(f"listening on {host}:{port}, forwarding to {room_id}")
     try:
         if cfg.batches:
-            asyncio.run(scheduler.run(homeserver, token, room_id, store, cfg.batches))
+            asyncio.run(scheduler.run(homeserver, token, room_id, store, cfg))
         else:
             threading.Event().wait()
     except KeyboardInterrupt:
